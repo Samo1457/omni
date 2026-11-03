@@ -175,6 +175,16 @@ select.key{flex:none;height:32px;border-radius:16px;border:0;border-radius:11px;
 #modal h2{margin:0;font-size:22px}
 #modal audio{width:100%}
 #modal .acts{display:flex;gap:8px}#modal .acts>*{flex:1;text-align:center;text-decoration:none;color:var(--ink);line-height:42px;padding:0}
+.kc{display:none;text-decoration:none;pointer-events:none}
+@media (pointer:fine){
+  .pad .kc{display:block;position:absolute;right:7px;bottom:6px;min-width:20px;height:20px;line-height:18px;text-align:center;border-radius:5px;
+    background:rgba(34,69,122,.12);border:1px solid rgba(34,69,122,.3);font-size:11px;font-weight:800;color:var(--navy)}
+  .pad.on .kc{background:rgba(255,255,255,.25);color:#fff;border-color:rgba(255,255,255,.5)}
+  #chords.pro .pad .kc{right:3px;bottom:3px;min-width:16px;height:16px;line-height:14px;font-size:10px}
+  .str .kc{display:block;position:absolute;right:10px;top:50%;transform:translateY(-50%);min-width:20px;height:20px;line-height:18px;text-align:center;
+    border-radius:5px;background:#fff8e3;border:1px solid rgba(34,69,122,.35);font-size:11px;font-weight:800;color:var(--navy);box-shadow:0 2px 0 rgba(34,69,122,.2)}
+}
+@media (pointer:fine) and (max-aspect-ratio:1/1){.str .kc{right:auto;left:50%;top:8px;transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.pad.hint{animation:none;box-shadow:0 5px 0 var(--edge),0 0 0 3px rgba(242,207,75,.85)}}
 </style>
 </head>
@@ -500,6 +510,16 @@ function stopPad(t){if(padHandle){padHandle.release(t);padHandle=null;}}
 function setChord(spec){cur={...spec};markCur();updatePlate();updateHints();}
 function buzz(ms){if(S.haptics&&navigator.vibrate){try{navigator.vibrate(ms);}catch(e){}}}
 
+/* ---------------- clavier d'ordinateur : touches physiques (AZERTY/QWERTY) ---------------- */
+const GUIDE_KEYS=['KeyQ','KeyW','KeyE','KeyR','KeyA','KeyS','KeyD','KeyF'];           // reproduit la grille 4×2
+const PRO_KEYS=[['KeyQ','KeyW','KeyE','KeyR','KeyT'],['KeyA','KeyS','KeyD','KeyF','KeyG'],['KeyZ','KeyX','KeyC','KeyV','KeyB']];
+const PLATE_KEYS=['KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote','KeyY','KeyU','KeyI','KeyO','KeyP','BracketLeft','BracketRight'];
+const KEY_FALLBACK={Semicolon:';',Quote:"'",BracketLeft:'[',BracketRight:']',Comma:',',Period:'.',Slash:'/'};
+let layoutMap=null;
+function keyLabel(code){if(!code)return'';const c=layoutMap&&layoutMap.get(code);
+  return(c||KEY_FALLBACK[code]||code.replace('Key','')).toUpperCase();}
+try{if(navigator.keyboard&&navigator.keyboard.getLayoutMap)navigator.keyboard.getLayoutMap().then(m=>{layoutMap=m;renderChords();updatePlate();}).catch(()=>{});}catch(e){}
+
 /* ---------------- accords : rendu ---------------- */
 const chordsEl=$('#chords');const isPortrait=()=>matchMedia('(max-aspect-ratio:1/1)').matches;
 function renderChords(){
@@ -508,7 +528,8 @@ function renderChords(){
   if(S.ui==='guide'){
     for(let d=0;d<8;d++){const c=degreeChord(d);
       const p=el('div','pad',`<span class="rn">${ROMAN[S.mode][d]}</span><b>${nn(c.root)}</b><em>${TYPES[c.type].q}</em><small>${FEEL[S.mode][d]}</small>`);
-      p.dataset.root=c.root;p.dataset.type=c.type;p.dataset.deg=d;chordsEl.append(p);}
+      p.dataset.root=c.root;p.dataset.type=c.type;p.dataset.deg=d;p.dataset.kc=GUIDE_KEYS[d];
+      p.append(el('s','kc',keyLabel(GUIDE_KEYS[d])));chordsEl.append(p);}
   }else{
     const rows=PACKS[S.pack],mj=S.mode==='min'?(S.key+3)%12:S.key,start=(mj+5)%12;
     const roots=[];for(let i=0;i<12;i++)roots.push((start+7*i)%12);
@@ -521,6 +542,7 @@ function renderChords(){
       const dia=chordPcs(root,type).every(pc=>sc.includes(pc));
       const p=el('div','pad'+(dia?' dia':''),`<b>${nn(root)}</b><em>${TYPES[type].sfx||'&nbsp;'}</em>`);
       p.dataset.root=root;p.dataset.type=type;
+      const kc=PRO_KEYS[ri]&&PRO_KEYS[ri][ci];if(kc){p.dataset.kc=kc;p.append(el('s','kc',keyLabel(kc)));}
       p.style.gridRow=port?ci+1:ri+1;p.style.gridColumn=port?ri+1:ci+1;cells.push(p);}));
     cells.forEach(p=>chordsEl.append(p));
   }
@@ -561,10 +583,10 @@ function plateList(){
   return out;}
 function updatePlate(){
   const list=plateList();plateMidis=list;
-  while(plateEl.children.length<list.length)plateEl.append(el('div','str','<i></i>'));
+  while(plateEl.children.length<list.length)plateEl.append(el('div','str','<i></i><s class="kc"></s>'));
   while(plateEl.children.length>list.length)plateEl.lastChild.remove();
   strEls=[...plateEl.children];
-  list.forEach((m,i)=>{const s=strEls[i];s.classList.toggle('root',m%12===cur.root);s.firstChild.textContent=nn(m%12);});
+  list.forEach((m,i)=>{const s=strEls[i];s.classList.toggle('root',m%12===cur.root);s.firstChild.textContent=nn(m%12);s.lastChild.textContent=keyLabel(PLATE_KEYS[i]);});
 }
 function plateIdx(ev){const r=plateEl.getBoundingClientRect(),N=plateMidis.length;
   const t=isPortrait()?(ev.clientX-r.left)/r.width:1-(ev.clientY-r.top)/r.height;
@@ -585,13 +607,20 @@ plateEl.addEventListener('pointermove',e=>{const p=plateP.get(e.pointerId);if(!p
 ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>plateEl.addEventListener(ev,e=>plateP.delete(e.pointerId)));
 plateEl.addEventListener('contextmenu',e=>e.preventDefault());
 
-/* ---------------- clavier d'ordinateur ---------------- */
-const KEYS_PLATE='asdfghjkl;\'';const heldKeys=new Set();
-addEventListener('keydown',e=>{if(e.repeat||e.metaKey||e.ctrlKey||e.target.tagName==='SELECT')return;
-  if(e.code==='Space'){e.preventDefault();clock.playing?stopClock():startClock();return;}
-  if(S.ui==='guide'&&/^[1-8]$/.test(e.key)){const p=chordsEl.children[+e.key-1];if(p&&!heldKeys.has(e.key)){heldKeys.add(e.key);padDown(p,'k'+e.key);}}
-  const i=KEYS_PLATE.indexOf(e.key);if(i>=0&&i<plateMidis.length)hitString(i,.8);});
-addEventListener('keyup',e=>{if(heldKeys.has(e.key)){heldKeys.delete(e.key);padUp('k'+e.key);}});
+/* ---------------- clavier d'ordinateur : jeu ---------------- */
+const heldKeys=new Set();
+addEventListener('keydown',e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey||/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName))return;
+  if(e.code==='Space'){e.preventDefault();if(!e.repeat)(clock.playing?stopClock():startClock());return;}
+  if(e.code==='Escape'){stopPad();return;}
+  if(e.repeat)return;
+  const pad=chordsEl.querySelector('.pad[data-kc="'+e.code+'"]');
+  if(pad&&!heldKeys.has(e.code)){e.preventDefault();ensureAudio();heldKeys.add(e.code);padDown(pad,'k'+e.code);return;}
+  const i=PLATE_KEYS.indexOf(e.code);
+  if(i>=0&&i<plateMidis.length){e.preventDefault();ensureAudio();heldKeys.add(e.code);hitString(i,.85);}
+});
+addEventListener('keyup',e=>{if(heldKeys.has(e.code)){heldKeys.delete(e.code);padUp('k'+e.code);}});
+addEventListener('blur',()=>{[...heldKeys].forEach(c=>padUp('k'+c));heldKeys.clear();});
 addEventListener('gesturestart',e=>e.preventDefault());
 document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPad();}});
 
@@ -655,6 +684,7 @@ const TABS=[
    {t:'tog',k:'sustain',label:'Tenir les accords après le doigt'},
    {t:'tog',k:'hints',label:'Suggérer l\'accord suivant'},
    {t:'tog',k:'haptics',label:'Vibrations tactiles'},
+   {t:'note',text:'Clavier d\'ordinateur : Espace = lecture/stop · accords à la main gauche (Guidé : Q W E R / A S D F, comme la grille ; Pro : Q W E R T, A S D F G, Z X C V B) · plaque à la main droite (H J K L ; \' puis Y U I O P). Les lettres s\'affichent sur les touches. Échap = couper l\'accord.'},
    {t:'reset'}]},
  {id:'plate',n:'Plaque',items:[
    {t:'seg',k:'plateVoice',label:'Son',opts:[['harp','Harpe'],['vibes','Vibraphone'],['bell','Cloche'],['synth','Synthé'],['flute','Flûte']]},

@@ -5,6 +5,7 @@ services:
     build: https://github.com/Samo1457/omni.git#main
     container_name: omni
     restart: unless-stopped
+    pull_policy: build
     networks: [npm]
 networks:
   npm:
