@@ -1,0 +1,12 @@
+# OMNI : nginx statique branché sur le réseau de Nginx Proxy Manager (npm_default).
+# Dans NPM : omni.sami-nacer.fr -> http://omni:80
+services:
+  omni:
+    build: https://github.com/Samo1457/omni.git#main
+    container_name: omni
+    restart: unless-stopped
+    networks: [npm]
+networks:
+  npm:
+    external: true
+    name: npm_default
