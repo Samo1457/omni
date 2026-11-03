@@ -512,12 +512,17 @@ function buzz(ms){if(S.haptics&&navigator.vibrate){try{navigator.vibrate(ms);}ca
 
 /* ---------------- clavier d'ordinateur : touches physiques (AZERTY/QWERTY) ---------------- */
 const GUIDE_KEYS=['KeyQ','KeyW','KeyE','KeyR','KeyA','KeyS','KeyD','KeyF'];           // reproduit la grille 4×2
-const PRO_KEYS=[['KeyQ','KeyW','KeyE','KeyR','KeyT'],['KeyA','KeyS','KeyD','KeyF','KeyG'],['KeyZ','KeyX','KeyC','KeyV','KeyB']];
-const PLATE_KEYS=['KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote','KeyY','KeyU','KeyI','KeyO','KeyP','BracketLeft','BracketRight'];
-const KEY_FALLBACK={Semicolon:';',Quote:"'",BracketLeft:'[',BracketRight:']',Comma:',',Period:'.',Slash:'/'};
+// Pro : une rangée de touches = une rangée d'accords (12 colonnes = les 12 fondamentales), la rangée des chiffres = la plaque
+const PRO_KEYS=[['KeyQ','KeyW','KeyE','KeyR','KeyT','KeyY','KeyU','KeyI','KeyO','KeyP','BracketLeft','BracketRight'],
+  ['KeyA','KeyS','KeyD','KeyF','KeyG','KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote','Backslash'],
+  ['KeyZ','KeyX','KeyC','KeyV','KeyB','KeyN','KeyM','Comma','Period','Slash']];
+const GUIDE_PLATE=['KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote','KeyY','KeyU','KeyI','KeyO','KeyP','BracketLeft','BracketRight'];
+const PRO_PLATE=['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'];
+const plateKeys=()=>S.ui==='pro'?PRO_PLATE:GUIDE_PLATE;
+const KEY_FALLBACK={Semicolon:';',Quote:"'",BracketLeft:'[',BracketRight:']',Comma:',',Period:'.',Slash:'/',Backslash:'\\',Minus:'-',Equal:'='};
 let layoutMap=null;
 function keyLabel(code){if(!code)return'';const c=layoutMap&&layoutMap.get(code);
-  return(c||KEY_FALLBACK[code]||code.replace('Key','')).toUpperCase();}
+  return(c||KEY_FALLBACK[code]||code.replace('Key','').replace('Digit','')).toUpperCase();}
 try{if(navigator.keyboard&&navigator.keyboard.getLayoutMap)navigator.keyboard.getLayoutMap().then(m=>{layoutMap=m;renderChords();updatePlate();}).catch(()=>{});}catch(e){}
 
 /* ---------------- accords : rendu ---------------- */
@@ -586,7 +591,7 @@ function updatePlate(){
   while(plateEl.children.length<list.length)plateEl.append(el('div','str','<i></i><s class="kc"></s>'));
   while(plateEl.children.length>list.length)plateEl.lastChild.remove();
   strEls=[...plateEl.children];
-  list.forEach((m,i)=>{const s=strEls[i];s.classList.toggle('root',m%12===cur.root);s.firstChild.textContent=nn(m%12);s.lastChild.textContent=keyLabel(PLATE_KEYS[i]);});
+  list.forEach((m,i)=>{const s=strEls[i];s.classList.toggle('root',m%12===cur.root);s.firstChild.textContent=nn(m%12);s.lastChild.textContent=keyLabel(plateKeys()[i]);});
 }
 function plateIdx(ev){const r=plateEl.getBoundingClientRect(),N=plateMidis.length;
   const t=isPortrait()?(ev.clientX-r.left)/r.width:1-(ev.clientY-r.top)/r.height;
@@ -616,7 +621,7 @@ addEventListener('keydown',e=>{
   if(e.repeat)return;
   const pad=chordsEl.querySelector('.pad[data-kc="'+e.code+'"]');
   if(pad&&!heldKeys.has(e.code)){e.preventDefault();ensureAudio();heldKeys.add(e.code);padDown(pad,'k'+e.code);return;}
-  const i=PLATE_KEYS.indexOf(e.code);
+  const i=plateKeys().indexOf(e.code);
   if(i>=0&&i<plateMidis.length){e.preventDefault();ensureAudio();heldKeys.add(e.code);hitString(i,.85);}
 });
 addEventListener('keyup',e=>{if(heldKeys.has(e.code)){heldKeys.delete(e.code);padUp('k'+e.code);}});
@@ -684,7 +689,7 @@ const TABS=[
    {t:'tog',k:'sustain',label:'Tenir les accords après le doigt'},
    {t:'tog',k:'hints',label:'Suggérer l\'accord suivant'},
    {t:'tog',k:'haptics',label:'Vibrations tactiles'},
-   {t:'note',text:'Clavier d\'ordinateur : Espace = lecture/stop · accords à la main gauche (Guidé : Q W E R / A S D F, comme la grille ; Pro : Q W E R T, A S D F G, Z X C V B) · plaque à la main droite (H J K L ; \' puis Y U I O P). Les lettres s\'affichent sur les touches. Échap = couper l\'accord.'},
+   {t:'note',text:'Clavier d\'ordinateur : Espace = lecture/stop · accords à la main gauche (Guidé : Q W E R / A S D F, comme la grille ; Pro : une rangée de touches par rangée d\'accords, Q→] majeur, A→\\ mineur, Z→/ 7e) · plaque : H J K L ; \' puis Y U I O P en Guidé, rangée des chiffres en Pro. Les lettres s\'affichent sur les touches. Échap = couper l\'accord.'},
    {t:'reset'}]},
  {id:'plate',n:'Plaque',items:[
    {t:'seg',k:'plateVoice',label:'Son',opts:[['harp','Harpe'],['vibes','Vibraphone'],['bell','Cloche'],['synth','Synthé'],['flute','Flûte']]},
